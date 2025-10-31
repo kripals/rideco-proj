@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+import uuid
 
 from fastapi.testclient import TestClient
 
@@ -78,3 +79,87 @@ def test_update_nonexistent_grocery_returns_not_found(client: TestClient) -> Non
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Grocery not found"
+
+
+def test_duplicate_item_type_returns_conflict(client: TestClient) -> None:
+    name = f"Frozen-{uuid.uuid4()}"
+    first = client.post("/api/v1/item_types", json={"name": name})
+    assert first.status_code == 200
+
+    duplicate = client.post("/api/v1/item_types", json={"name": name})
+    assert duplicate.status_code == 409
+    assert "exists" in duplicate.json()["detail"]
+
+
+def test_create_item_with_unknown_type_fails(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/items",
+        json={"name": f"UnknownType-{uuid.uuid4()}", "item_type_id": 999_999},
+    )
+
+    assert response.status_code == 400
+    assert "Unknown item type" in response.json()["detail"]
+
+
+def test_create_grocery_item_with_invalid_reference(client: TestClient) -> None:
+    grocery = client.post(
+        "/api/v1/groceries",
+        json={
+            "family_id": 1,
+            "grocery_date": date.today().isoformat(),
+            "grocery_items": [],
+        },
+    ).json()
+
+    response = client.post(
+        f"/api/v1/groceries/{grocery['id']}/items",
+        json={"item_id": 999_999, "quantity": 1, "purchased": False},
+    )
+
+    assert response.status_code == 400
+    assert "Invalid grocery or item reference." in response.json()["detail"]
+
+
+def test_patch_grocery_item_toggle_purchased(client: TestClient) -> None:
+    item_id = client.get("/api/v1/items").json()[0]["id"]
+    grocery = client.post(
+        "/api/v1/groceries",
+        json={
+            "family_id": 1,
+            "grocery_date": date.today().isoformat(),
+            "grocery_items": [{"item_id": item_id, "quantity": 1, "purchased": False}],
+        },
+    ).json()
+
+    grocery_item_id = grocery["grocery_items"][0]["id"]
+    patch_response = client.patch(
+        f"/api/v1/grocery_items/{grocery_item_id}",
+        json={"purchased": True},
+    )
+
+    assert patch_response.status_code == 200
+    assert patch_response.json()["purchased"] is True
+
+
+def test_delete_grocery_with_items_cascades(client: TestClient) -> None:
+    item_id = client.get("/api/v1/items").json()[0]["id"]
+    grocery = client.post(
+        "/api/v1/groceries",
+        json={
+            "family_id": 1,
+            "grocery_date": date.today().isoformat(),
+            "grocery_items": [{"item_id": item_id, "quantity": 1, "purchased": False}],
+        },
+    ).json()
+
+    delete_response = client.delete(f"/api/v1/groceries/{grocery['id']}")
+    assert delete_response.status_code == 200
+
+    follow_up = client.get(f"/api/v1/groceries/{grocery['id']}")
+    assert follow_up.status_code == 404
+
+
+def test_items_endpoint_respects_limit(client: TestClient) -> None:
+    response = client.get("/api/v1/items", params={"limit": 1})
+    assert response.status_code == 200
+    assert len(response.json()) <= 1

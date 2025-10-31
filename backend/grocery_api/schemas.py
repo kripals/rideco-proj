@@ -27,7 +27,7 @@ class ItemType(ItemTypeBase):
 # --------------------------------------------------------------------
 class ItemBase(BaseModel):
     name: str
-    item_type_id: int
+    item_type_id: int = Field(gt=0)
 
 
 class ItemCreate(ItemBase):
@@ -46,8 +46,8 @@ class Item(ItemBase):
 # GROCERY ITEM
 # --------------------------------------------------------------------
 class GroceryItemBase(BaseModel):
-    item_id: int
-    quantity: int = 1
+    item_id: int = Field(gt=0)
+    quantity: int = Field(default=1, ge=1, le=999)
     purchased: bool = False
 
 
@@ -64,11 +64,19 @@ class GroceryItem(GroceryItemBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class GroceryItemUpdate(BaseModel):
+    item_id: Optional[int] = Field(default=None, gt=0)
+    quantity: Optional[int] = Field(default=None, ge=1, le=999)
+    purchased: Optional[bool] = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
 # --------------------------------------------------------------------
 # GROCERY
 # --------------------------------------------------------------------
 class GroceryBase(BaseModel):
-    family_id: int
+    family_id: int = Field(ge=1)
     grocery_date: date
 
 

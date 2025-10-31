@@ -1,59 +1,37 @@
-# GroceryFrontend
+# Grocery Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.19.
+This is the Angular client for the Grocery Planner app. It lets you build grocery lists and browse everything you’ve already saved. The UI talks to the FastAPI backend that lives in `./backend`.
 
-## Development server
+## What you need
 
-To start a local development server, run:
+- Node.js 18 (or newer)
+- npm 9+
 
-```bash
-ng serve
-```
+## Getting started
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Install dependencies once:
 
 ```bash
-ng generate component component-name
+npm install
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Start the dev server:
 
 ```bash
-ng generate --help
+npm start
 ```
 
-## Building
+Angular CLI serves the app at `http://localhost:4200` with live reload. The code expects the backend at `http://localhost:8000/api/v1`; change the `apiUrl` in `src/app/services/grocery.service.ts` if your backend runs elsewhere.
 
-To build the project run:
+## Useful scripts
 
-```bash
-ng build
-```
+- `npm start` – run the dev server
+- `npm run build` – create a production build in `dist/`
+- `npm test` – execute unit tests with Karma
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## Project notes
 
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- The planner page creates new grocery lists; the saved lists page lets you mark items as purchased, adjust quantities, add catalog items to an existing list, or delete items/lists outright.
+- Components live in `src/app`. `grocery-form` handles creating a list and `grocery-list` shows what’s already stored.
+- Styles are plain CSS. Global rules are in `src/styles.css`, and each component keeps its own styles next to the TypeScript file.
+- The expected workflow is to run the Angular CLI dev server (`npm start`). A Dockerfile lives here for future production builds, but it isn’t wired into any scripts yet; feel free to build it manually if you want a static bundle served via nginx.

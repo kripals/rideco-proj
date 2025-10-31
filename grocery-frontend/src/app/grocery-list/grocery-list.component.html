@@ -1,0 +1,175 @@
+<section class="grocery-list-card">
+  <header>
+    <div class="header-copy">
+      <h2>Saved Grocery Lists</h2>
+      <p>Update quantities, mark items as purchased, or prune old lists.</p>
+    </div>
+    <button type="button" (click)="loadGroceries()" [disabled]="loading">
+      {{ loading ? 'Refreshing…' : 'Refresh' }}
+    </button>
+  </header>
+
+  <ng-container *ngIf="!loading && !errorMessage && groceries.length === 0">
+    <p class="empty">No grocery lists yet. Create one from the planner page.</p>
+  </ng-container>
+
+  <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+  <div class="grocery-grid" *ngIf="groceries.length">
+    <article
+      class="grocery-card"
+      *ngFor="let grocery of groceries; trackBy: trackByGroceryId"
+    >
+      <div class="grocery-header">
+        <div class="grocery-meta">
+          <span class="grocery-id">#{{ grocery.id }}</span>
+          <span class="grocery-date">{{ grocery.grocery_date | date }}</span>
+        </div>
+        <div class="grocery-actions">
+          <button
+            type="button"
+            class="ghost"
+            (click)="openAddItem(grocery)"
+            [disabled]="
+              activeAddFor === grocery.id ||
+              isGroceryProcessing(grocery.id) ||
+              getAvailableItemsFor(grocery).length === 0
+            "
+          >
+            Add item
+          </button>
+          <button
+            type="button"
+            class="danger"
+            (click)="deleteGrocery(grocery)"
+            [disabled]="isGroceryProcessing(grocery.id)"
+          >
+            Delete list
+          </button>
+        </div>
+      </div>
+      <p class="grocery-family">Family ID: {{ grocery.family_id }}</p>
+
+      <div
+        class="add-item"
+        *ngIf="
+          activeAddFor === grocery.id && getAvailableItemsFor(grocery).length
+        "
+      >
+        <form
+          class="add-item-form"
+          [formGroup]="newItemForm"
+          (ngSubmit)="submitNewItem(grocery)"
+          novalidate
+        >
+          <label>
+            <span>Item</span>
+            <select formControlName="item_id">
+              <option value="">Select an item</option>
+              <option
+                *ngFor="let available of getAvailableItemsFor(grocery)"
+                [value]="available.id"
+              >
+                {{ available.name }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>Quantity</span>
+            <input type="number" min="1" formControlName="quantity" />
+          </label>
+          <div class="add-item-actions">
+            <button
+              type="submit"
+              class="primary"
+              [disabled]="addingItemPending || newItemForm.invalid"
+            >
+              {{ addingItemPending ? 'Adding…' : 'Add item' }}
+            </button>
+            <button type="button" class="ghost" (click)="cancelAddItem()">
+              Cancel
+            </button>
+          </div>
+        </form>
+        <p class="error" *ngIf="newItemForm.invalid && newItemForm.touched">
+          Select an item and quantity before saving.
+        </p>
+      </div>
+
+      <p class="hint" *ngIf="
+        activeAddFor !== grocery.id &&
+        getAvailableItemsFor(grocery).length === 0
+      ">
+        All catalog items are already part of this list.
+      </p>
+
+      <ul class="grocery-items">
+        <li
+          *ngFor="let item of grocery.grocery_items; trackBy: trackByItemId"
+        >
+          <div class="item-main">
+            <div class="item-details">
+              <span class="item-name">{{
+                item.item?.name || 'Unknown item'
+              }}</span>
+              <div class="quantity-controls">
+                <button
+                  type="button"
+                  (click)="changeQuantity(grocery, item, -1)"
+                  [disabled]="isItemProcessing(item.id)"
+                  aria-label="Decrease quantity"
+                >
+                  −
+                </button>
+                <span class="quantity-value">{{ item.quantity }}</span>
+                <button
+                  type="button"
+                  (click)="changeQuantity(grocery, item, 1)"
+                  [disabled]="isItemProcessing(item.id)"
+                  aria-label="Increase quantity"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="status-pill"
+              [class.purchased]="item.purchased"
+              (click)="togglePurchased(grocery, item)"
+              [disabled]="isItemProcessing(item.id)"
+            >
+              {{ item.purchased ? 'Purchased' : 'Pending' }}
+            </button>
+          </div>
+          <div class="item-footer">
+            <span class="timestamp">
+              Added {{ item.created_at | date: 'mediumDate' }}
+            </span>
+            <button
+              type="button"
+              class="link"
+              (click)="deleteItem(grocery, item)"
+              [disabled]="isItemProcessing(item.id)"
+            >
+              Remove
+            </button>
+          </div>
+        </li>
+      </ul>
+
+      <div
+        class="add-item-empty"
+        *ngIf="activeAddFor === grocery.id && !getAvailableItemsFor(grocery).length"
+      >
+        <p class="hint">
+          All catalog items are already part of this list. Add more products
+          from the backend catalog to continue.
+        </p>
+        <button type="button" class="ghost" (click)="cancelAddItem()">
+          Close
+        </button>
+      </div>
+    </article>
+  </div>
+</section>

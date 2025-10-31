@@ -43,14 +43,21 @@ class Grocery(Base):
     created_at = Column(DateTime, nullable=False, default=func.now())
 
     grocery_items = relationship(
-        "GroceryItem", back_populates="grocery", lazy="selectin"
+        "GroceryItem",
+        back_populates="grocery",
+        lazy="selectin",
+        cascade="all, delete-orphan",
     )
 
 
 class GroceryItem(Base):
     __tablename__ = "grocery_items"
     id = Column(Integer, primary_key=True, index=True)
-    grocery_id = Column(Integer, ForeignKey("groceries.id"), nullable=False)
+    grocery_id = Column(
+        Integer,
+        ForeignKey("groceries.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     item_id = Column(Integer, ForeignKey("items.id"), nullable=False)
     quantity = Column(Integer, default=1)
     purchased = Column(Boolean, default=False)

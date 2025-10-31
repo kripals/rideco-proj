@@ -2,9 +2,10 @@ import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 load_dotenv()
@@ -57,6 +58,20 @@ def get_db():
         db.close()
 
 
+def _normalize_pagination(limit: int) -> int:
+    """Clamp excessive limits to keep responses lightweight."""
+    return max(1, min(limit, 100))
+
+
+def _handle_integrity_error(
+    exc: IntegrityError, conflict_detail: str, bad_request_detail: str
+) -> None:
+    message = str(getattr(exc, "orig", exc))
+    if "UNIQUE constraint failed" in message:
+        raise HTTPException(status_code=409, detail=conflict_detail) from exc
+    raise HTTPException(status_code=400, detail=bad_request_detail) from exc
+
+
 # --------------------------------------------------------------------
 # GLOBAL ERROR HANDLER
 # --------------------------------------------------------------------
@@ -83,37 +98,60 @@ def root():
 # ITEM TYPES
 # --------------------------------------------------------------------
 @api_v1.get("/item_types", response_model=list[schemas.ItemType], tags=["Item Types"])
-def read_item_types(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
-    item_types = crud.get_item_types(db)
-    return item_types[skip : skip + limit]
+def read_item_types(
+    skip: int = 0,
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return crud.get_item_types(db, skip=skip, limit=_normalize_pagination(limit))
 
 
 @api_v1.post("/item_types", response_model=schemas.ItemType, tags=["Item Types"])
 def create_item_type(item_type: schemas.ItemTypeCreate, db: Session = Depends(get_db)):
-    return crud.create_item_type(db, item_type)
+    try:
+        return crud.create_item_type(db, item_type)
+    except IntegrityError as exc:
+        _handle_integrity_error(
+            exc,
+            conflict_detail="Item type with that name already exists.",
+            bad_request_detail="Invalid item type data.",
+        )
 
 
 # --------------------------------------------------------------------
 # ITEMS
 # --------------------------------------------------------------------
 @api_v1.get("/items", response_model=list[schemas.Item], tags=["Items"])
-def read_items(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
-    items = crud.get_items(db)
-    return items[skip : skip + limit]
+def read_items(
+    skip: int = 0,
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return crud.get_items(db, skip=skip, limit=_normalize_pagination(limit))
 
 
 @api_v1.post("/items", response_model=schemas.Item, tags=["Items"])
 def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db)):
-    return crud.create_item(db, item)
+    try:
+        return crud.create_item(db, item)
+    except IntegrityError as exc:
+        _handle_integrity_error(
+            exc,
+            conflict_detail="Item with that name already exists.",
+            bad_request_detail="Unknown item type reference.",
+        )
 
 
 # --------------------------------------------------------------------
 # GROCERIES
 # --------------------------------------------------------------------
 @api_v1.get("/groceries", response_model=list[schemas.Grocery], tags=["Groceries"])
-def read_groceries(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
-    groceries = crud.get_groceries(db)
-    return groceries[skip : skip + limit]
+def read_groceries(
+    skip: int = 0,
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return crud.get_groceries(db, skip=skip, limit=_normalize_pagination(limit))
 
 
 @api_v1.get("/groceries/{grocery_id}", response_model=schemas.Grocery, tags=["Groceries"])
@@ -126,7 +164,14 @@ def read_grocery(grocery_id: int, db: Session = Depends(get_db)):
 
 @api_v1.post("/groceries", response_model=schemas.Grocery, tags=["Groceries"])
 def create_grocery(grocery: schemas.GroceryCreate, db: Session = Depends(get_db)):
-    return crud.create_grocery(db, grocery)
+    try:
+        return crud.create_grocery(db, grocery)
+    except IntegrityError as exc:
+        _handle_integrity_error(
+            exc,
+            conflict_detail="Conflicting grocery data.",
+            bad_request_detail="One or more grocery items reference invalid products.",
+        )
 
 
 @api_v1.put("/groceries/{grocery_id}", response_model=schemas.Grocery, tags=["Groceries"])
@@ -151,9 +196,12 @@ def delete_grocery(grocery_id: int, db: Session = Depends(get_db)):
 # GROCERY ITEMS
 # --------------------------------------------------------------------
 @api_v1.get("/grocery_items", response_model=list[schemas.GroceryItem], tags=["Grocery Items"])
-def read_grocery_items(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
-    items = crud.get_grocery_items(db)
-    return items[skip : skip + limit]
+def read_grocery_items(
+    skip: int = 0,
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return crud.get_grocery_items(db, skip=skip, limit=_normalize_pagination(limit))
 
 
 @api_v1.get(
@@ -173,7 +221,30 @@ def read_grocery_items_by_grocery(grocery_id: int, db: Session = Depends(get_db)
 def create_grocery_item(
     grocery_id: int, item: schemas.GroceryItemCreate, db: Session = Depends(get_db)
 ):
-    return crud.create_grocery_item(db, grocery_id, item)
+    try:
+        return crud.create_grocery_item(db, grocery_id, item)
+    except IntegrityError as exc:
+        _handle_integrity_error(
+            exc,
+            conflict_detail="Grocery already contains that item.",
+            bad_request_detail="Invalid grocery or item reference.",
+        )
+
+
+def _update_grocery_item(
+    grocery_item_id: int, item: schemas.GroceryItemUpdate, db: Session
+) -> schemas.GroceryItem:
+    try:
+        updated = crud.update_grocery_item(db, grocery_item_id, item)
+    except IntegrityError as exc:
+        _handle_integrity_error(
+            exc,
+            conflict_detail="Grocery already contains that item.",
+            bad_request_detail="Invalid grocery item update.",
+        )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Grocery item not found")
+    return updated
 
 
 @api_v1.put(
@@ -182,12 +253,20 @@ def create_grocery_item(
     tags=["Grocery Items"],
 )
 def update_grocery_item(
-    grocery_item_id: int, item: schemas.GroceryItemCreate, db: Session = Depends(get_db)
+    grocery_item_id: int, item: schemas.GroceryItemUpdate, db: Session = Depends(get_db)
 ):
-    updated = crud.update_grocery_item(db, grocery_item_id, item)
-    if not updated:
-        raise HTTPException(status_code=404, detail="Grocery item not found")
-    return updated
+    return _update_grocery_item(grocery_item_id, item, db)
+
+
+@api_v1.patch(
+    "/grocery_items/{grocery_item_id}",
+    response_model=schemas.GroceryItem,
+    tags=["Grocery Items"],
+)
+def patch_grocery_item(
+    grocery_item_id: int, item: schemas.GroceryItemUpdate, db: Session = Depends(get_db)
+):
+    return _update_grocery_item(grocery_item_id, item, db)
 
 
 @api_v1.delete("/grocery_items/{grocery_item_id}", tags=["Grocery Items"])

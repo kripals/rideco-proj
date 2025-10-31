@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from grocery_api import models, schemas
@@ -13,14 +14,24 @@ def _model_dump(schema_obj, **kwargs):
 # --------------------------------------------------------------------
 # ITEM TYPES
 # --------------------------------------------------------------------
-def get_item_types(db: Session):
-    return db.query(models.ItemType).options(selectinload(models.ItemType.items)).all()
+def get_item_types(db: Session, skip: int = 0, limit: int = 50):
+    return (
+        db.query(models.ItemType)
+        .options(selectinload(models.ItemType.items))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def create_item_type(db: Session, item_type: schemas.ItemTypeCreate):
     db_item_type = models.ItemType(**_model_dump(item_type))
     db.add(db_item_type)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise
     db.refresh(db_item_type)
     return db_item_type
 
@@ -28,14 +39,24 @@ def create_item_type(db: Session, item_type: schemas.ItemTypeCreate):
 # --------------------------------------------------------------------
 # ITEMS
 # --------------------------------------------------------------------
-def get_items(db: Session):
-    return db.query(models.Item).options(selectinload(models.Item.item_type)).all()
+def get_items(db: Session, skip: int = 0, limit: int = 50):
+    return (
+        db.query(models.Item)
+        .options(selectinload(models.Item.item_type))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def create_item(db: Session, item: schemas.ItemCreate):
     db_item = models.Item(**_model_dump(item))
     db.add(db_item)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise
     db.refresh(db_item)
     return db_item
 
@@ -43,7 +64,7 @@ def create_item(db: Session, item: schemas.ItemCreate):
 # --------------------------------------------------------------------
 # GROCERIES
 # --------------------------------------------------------------------
-def get_groceries(db: Session):
+def get_groceries(db: Session, skip: int = 0, limit: int = 50):
     return (
         db.query(models.Grocery)
         .options(
@@ -51,6 +72,8 @@ def get_groceries(db: Session):
                 models.GroceryItem.item
             )
         )
+        .offset(skip)
+        .limit(limit)
         .all()
     )
 
@@ -83,7 +106,11 @@ def create_grocery(db: Session, grocery: schemas.GroceryCreate):
             for item in grocery.grocery_items
         ]
     db.add(db_grocery)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise
 
     return get_grocery_by_id(db, db_grocery.id)
 
@@ -119,19 +146,25 @@ def delete_grocery(db: Session, grocery_id: int):
 # --------------------------------------------------------------------
 # GROCERY ITEMS
 # --------------------------------------------------------------------
-def get_grocery_items(db: Session):
+def get_grocery_items(db: Session, skip: int = 0, limit: int = 50):
     return (
         db.query(models.GroceryItem)
         .options(selectinload(models.GroceryItem.item))
+        .offset(skip)
+        .limit(limit)
         .all()
     )
 
 
-def get_grocery_items_by_grocery(db: Session, grocery_id: int):
+def get_grocery_items_by_grocery(
+    db: Session, grocery_id: int, skip: int = 0, limit: int = 50
+):
     return (
         db.query(models.GroceryItem)
         .options(selectinload(models.GroceryItem.item))
         .filter(models.GroceryItem.grocery_id == grocery_id)
+        .offset(skip)
+        .limit(limit)
         .all()
     )
 
@@ -144,13 +177,17 @@ def create_grocery_item(db: Session, grocery_id: int, item: schemas.GroceryItemC
         purchased=item.purchased,
     )
     db.add(db_item)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise
     db.refresh(db_item)
     return db_item
 
 
 def update_grocery_item(
-    db: Session, grocery_item_id: int, item: schemas.GroceryItemCreate
+    db: Session, grocery_item_id: int, item: schemas.GroceryItemUpdate
 ):
     db_item = (
         db.query(models.GroceryItem)
@@ -161,7 +198,11 @@ def update_grocery_item(
         return None
     for key, value in _model_dump(item, exclude_unset=True).items():
         setattr(db_item, key, value)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise
     db.refresh(db_item)
     return db_item
 

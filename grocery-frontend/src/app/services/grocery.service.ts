@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 export interface Item {
   id: number;
@@ -11,6 +12,12 @@ export interface Item {
 export interface GroceryItemPayload {
   item_id: number;
   quantity: number;
+  purchased?: boolean;
+}
+
+export interface UpdateGroceryItemPayload {
+  item_id?: number;
+  quantity?: number;
   purchased?: boolean;
 }
 
@@ -64,5 +71,27 @@ export class GroceryService {
   // Add grocery item to existing grocery
   addItem(groceryId: number, item: GroceryItemPayload): Observable<GroceryItem> {
     return this.http.post<GroceryItem>(`${this.apiUrl}/groceries/${groceryId}/items`, item);
+  }
+
+  updateGroceryItem(
+    groceryItemId: number,
+    changes: UpdateGroceryItemPayload
+  ): Observable<GroceryItem> {
+    return this.http.patch<GroceryItem>(
+      `${this.apiUrl}/grocery_items/${groceryItemId}`,
+      changes
+    );
+  }
+
+  deleteGroceryItem(groceryItemId: number): Observable<void> {
+    return this.http
+      .delete<{ status: string }>(`${this.apiUrl}/grocery_items/${groceryItemId}`)
+      .pipe(map(() => undefined));
+  }
+
+  deleteGrocery(groceryId: number): Observable<void> {
+    return this.http
+      .delete<{ status: string }>(`${this.apiUrl}/groceries/${groceryId}`)
+      .pipe(map(() => undefined));
   }
 }
