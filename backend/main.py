@@ -30,10 +30,10 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
     swagger_ui_parameters={
-        "defaultModelsExpandDepth": -1,   # hides Schemas section
-        "docExpansion": "none",            # collapse all endpoints by default
-        "displayRequestDuration": True,    # show timing info
-        "filter": True                     # adds a search bar
+        "defaultModelsExpandDepth": -1,  # hides Schemas section
+        "docExpansion": "none",  # collapse all endpoints by default
+        "displayRequestDuration": True,  # show timing info
+        "filter": True,  # adds a search bar
     },
 )
 api_v1 = APIRouter(prefix="/api/v1")
@@ -134,6 +134,8 @@ def read_items(
 def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db)):
     try:
         return crud.create_item(db, item)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except IntegrityError as exc:
         _handle_integrity_error(
             exc,
@@ -154,7 +156,9 @@ def read_groceries(
     return crud.get_groceries(db, skip=skip, limit=_normalize_pagination(limit))
 
 
-@api_v1.get("/groceries/{grocery_id}", response_model=schemas.Grocery, tags=["Groceries"])
+@api_v1.get(
+    "/groceries/{grocery_id}", response_model=schemas.Grocery, tags=["Groceries"]
+)
 def read_grocery(grocery_id: int, db: Session = Depends(get_db)):
     grocery = crud.get_grocery_by_id(db, grocery_id)
     if not grocery:
@@ -174,7 +178,9 @@ def create_grocery(grocery: schemas.GroceryCreate, db: Session = Depends(get_db)
         )
 
 
-@api_v1.put("/groceries/{grocery_id}", response_model=schemas.Grocery, tags=["Groceries"])
+@api_v1.put(
+    "/groceries/{grocery_id}", response_model=schemas.Grocery, tags=["Groceries"]
+)
 def update_grocery(
     grocery_id: int, grocery: schemas.GroceryUpdate, db: Session = Depends(get_db)
 ):
@@ -195,7 +201,9 @@ def delete_grocery(grocery_id: int, db: Session = Depends(get_db)):
 # --------------------------------------------------------------------
 # GROCERY ITEMS
 # --------------------------------------------------------------------
-@api_v1.get("/grocery_items", response_model=list[schemas.GroceryItem], tags=["Grocery Items"])
+@api_v1.get(
+    "/grocery_items", response_model=list[schemas.GroceryItem], tags=["Grocery Items"]
+)
 def read_grocery_items(
     skip: int = 0,
     limit: int = Query(default=50, ge=1, le=100),
@@ -223,6 +231,8 @@ def create_grocery_item(
 ):
     try:
         return crud.create_grocery_item(db, grocery_id, item)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except IntegrityError as exc:
         _handle_integrity_error(
             exc,

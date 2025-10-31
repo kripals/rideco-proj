@@ -1,3 +1,5 @@
+from typing import cast
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -50,6 +52,13 @@ def get_items(db: Session, skip: int = 0, limit: int = 50):
 
 
 def create_item(db: Session, item: schemas.ItemCreate):
+    item_type_exists = (
+        db.query(models.ItemType)
+        .filter(models.ItemType.id == item.item_type_id)
+        .first()
+    )
+    if not item_type_exists:
+        raise ValueError(f"Unknown item type id={item.item_type_id}")
     db_item = models.Item(**_model_dump(item))
     db.add(db_item)
     try:
@@ -112,7 +121,9 @@ def create_grocery(db: Session, grocery: schemas.GroceryCreate):
         db.rollback()
         raise
 
-    return get_grocery_by_id(db, db_grocery.id)
+    db.refresh(db_grocery)
+    grocery_id_int = cast(int, db_grocery.id)
+    return get_grocery_by_id(db, grocery_id_int)
 
 
 def update_grocery(db: Session, grocery_id: int, grocery: schemas.GroceryUpdate):
@@ -130,7 +141,9 @@ def update_grocery(db: Session, grocery_id: int, grocery: schemas.GroceryUpdate)
     for key, value in update_data.items():
         setattr(db_grocery, key, value)
     db.commit()
-    return get_grocery_by_id(db, grocery_id)
+    db.refresh(db_grocery)
+    grocery_id_int = cast(int, db_grocery.id)
+    return get_grocery_by_id(db, grocery_id_int)
 
 
 def delete_grocery(db: Session, grocery_id: int):
@@ -170,6 +183,16 @@ def get_grocery_items_by_grocery(
 
 
 def create_grocery_item(db: Session, grocery_id: int, item: schemas.GroceryItemCreate):
+    grocery_exists = (
+        db.query(models.Grocery).filter(models.Grocery.id == grocery_id).first()
+    )
+    if not grocery_exists:
+        raise ValueError("Invalid grocery or item reference.")
+
+    item_exists = db.query(models.Item).filter(models.Item.id == item.item_id).first()
+    if not item_exists:
+        raise ValueError("Invalid grocery or item reference.")
+
     db_item = models.GroceryItem(
         grocery_id=grocery_id,
         item_id=item.item_id,

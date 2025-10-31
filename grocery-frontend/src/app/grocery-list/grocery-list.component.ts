@@ -1,18 +1,25 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
-  FormBuilder,
+  FormControl,
   FormGroup,
+  NonNullableFormBuilder,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
+import { finalize } from 'rxjs/operators';
 import {
-  GroceryService,
   Grocery,
   GroceryItem,
+  GroceryItemPayload,
   Item,
-} from '../services/grocery.service';
-import { finalize } from 'rxjs/operators';
+} from '../models';
+import { GroceryService } from '../services/grocery.service';
+
+type AddItemFormGroup = FormGroup<{
+  item_id: FormControl<number>;
+  quantity: FormControl<number>;
+}>;
 
 @Component({
   selector: 'app-grocery-list',
@@ -28,19 +35,23 @@ export class GroceryListComponent implements OnInit {
   availableItems: Item[] = [];
 
   activeAddFor: number | null = null;
-  newItemForm: FormGroup;
+  newItemForm: AddItemFormGroup;
   addingItemPending = false;
 
   private itemBusy = new Set<number>();
   private groceryBusy = new Set<number>();
 
   constructor(
-    private groceryService: GroceryService,
-    private fb: FormBuilder
+    private readonly groceryService: GroceryService,
+    private readonly fb: NonNullableFormBuilder,
   ) {
     this.newItemForm = this.fb.group({
-      item_id: ['', Validators.required],
-      quantity: [1, [Validators.required, Validators.min(1)]],
+      item_id: this.fb.control(0, {
+        validators: [Validators.required, Validators.min(1)],
+      }),
+      quantity: this.fb.control(1, {
+        validators: [Validators.required, Validators.min(1)],
+      }),
     });
   }
 
@@ -91,7 +102,7 @@ export class GroceryListComponent implements OnInit {
 
   openAddItem(grocery: Grocery): void {
     this.activeAddFor = grocery.id;
-    this.newItemForm.reset({ item_id: '', quantity: 1 });
+    this.newItemForm.reset({ item_id: 0, quantity: 1 });
     this.newItemForm.markAsPristine();
     this.newItemForm.markAsUntouched();
   }
@@ -108,7 +119,7 @@ export class GroceryListComponent implements OnInit {
     }
 
     const value = this.newItemForm.getRawValue();
-    const payload = {
+    const payload: GroceryItemPayload = {
       item_id: Number(value.item_id),
       quantity: Number(value.quantity),
       purchased: false,
@@ -123,7 +134,7 @@ export class GroceryListComponent implements OnInit {
         next: (created) => {
           grocery.grocery_items = [...grocery.grocery_items, created];
           this.activeAddFor = null;
-          this.newItemForm.reset({ item_id: '', quantity: 1 });
+          this.newItemForm.reset({ item_id: 0, quantity: 1 });
         },
         error: (err) => {
           console.error('Failed to add grocery item', err);
@@ -194,7 +205,7 @@ export class GroceryListComponent implements OnInit {
       .subscribe({
         next: () => {
           grocery.grocery_items = grocery.grocery_items.filter(
-            (gi) => gi.id !== item.id
+            (gi) => gi.id !== item.id,
           );
         },
         error: (err) => {
@@ -207,7 +218,7 @@ export class GroceryListComponent implements OnInit {
   deleteGrocery(grocery: Grocery): void {
     if (
       !confirm(
-        `Delete grocery list #${grocery.id}? This will remove all of its items.`
+        `Delete grocery list #${grocery.id}? This will remove all of its items.`,
       )
     ) {
       return;
@@ -236,7 +247,7 @@ export class GroceryListComponent implements OnInit {
 
   private replaceItemInGrocery(grocery: Grocery, updated: GroceryItem): void {
     grocery.grocery_items = grocery.grocery_items.map((gi) =>
-      gi.id === updated.id ? updated : gi
+      gi.id === updated.id ? updated : gi,
     );
   }
 }

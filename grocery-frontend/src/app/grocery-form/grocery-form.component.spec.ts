@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
 
 import { GroceryFormComponent } from './grocery-form.component';
+import { GroceryService } from '../services/grocery.service';
 
 describe('GroceryFormComponent', () => {
   let component: GroceryFormComponent;
@@ -8,7 +10,16 @@ describe('GroceryFormComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [GroceryFormComponent]
+      imports: [GroceryFormComponent],
+      providers: [
+        {
+          provide: GroceryService,
+          useValue: {
+            getItems: () => of([]),
+            addGrocery: () => of({} as any),
+          },
+        },
+      ],
     })
     .compileComponents();
 

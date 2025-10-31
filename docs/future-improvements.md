@@ -40,6 +40,9 @@ Once the core workflow is solid, here’s where we can keep leveling up the proj
 - **Testing story**  
   Expand Karma/Jasmine coverage and add an end-to-end suite (Playwright or Cypress) to cover the submit-and-verify flow.
 
+- **Shared domain package**  
+  Extract the TypeScript interfaces into a workspace library or publishable package so generated backend typings can stay in sync with the Angular models without manual edits.
+
 ---
 
 ## Shared & DevOps ideas
@@ -61,5 +64,8 @@ Once the core workflow is solid, here’s where we can keep leveling up the proj
 
 - **Data lifecycle**  
   Document and automate retention policies (archiving old groceries, anonymizing PII) to ease compliance conversations later.
+
+- **Consolidated task runner**  
+  Introduce a Makefile (or npm/pipenv equivalent) to bundle common workflows—install, lint, build, test—behind a single command for contributors.
 
 These ideas aren’t required to keep the app running today, but knocking them out will make the system more trustworthy, easier to maintain, and ready for real users.

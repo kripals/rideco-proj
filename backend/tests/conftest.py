@@ -7,7 +7,9 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture(scope="session")
-def test_database(tmp_path_factory: pytest.TempPathFactory) -> Generator[Path, None, None]:
+def test_database(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Generator[Path, None, None]:
     """Provide an isolated SQLite database file for tests."""
     data_dir = tmp_path_factory.mktemp("data")
     db_path = data_dir / "test_grocery.db"

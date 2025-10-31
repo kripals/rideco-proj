@@ -43,6 +43,9 @@ Adding Angular Material would have ballooned the bundle and pushed a design look
 - `GroceryFormComponent` owns the form: date picker, item list, validation messaging, and the call to the backend.  
 - `GroceryListComponent` now handles item-level actions (toggle purchased, quantity adjustments, deletions) and hosts an inline “add item” workflow, demonstrating how the UI exercises the richer backend API.
 
+**Shared models & typed forms**  
+TypeScript interfaces live in `src/app/models`, and both the HTTP service and reactive forms consume them. `GroceryFormFactory` uses `NonNullableFormBuilder` so form state is strongly typed, making it harder to ship a UI/contract mismatch.
+
 **Centralized data access (`GroceryService`)**  
 Angular’s `HttpClient` sits behind a small service that describes the payload types. That way every component uses the same API surface, and changing the backend URL happens in one place.
 

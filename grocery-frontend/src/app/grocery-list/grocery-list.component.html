@@ -65,10 +65,10 @@
           <label>
             <span>Item</span>
             <select formControlName="item_id">
-              <option value="">Select an item</option>
+              <option [ngValue]="0">Select an item</option>
               <option
                 *ngFor="let available of getAvailableItemsFor(grocery)"
-                [value]="available.id"
+                [ngValue]="available.id"
               >
                 {{ available.name }}
               </option>

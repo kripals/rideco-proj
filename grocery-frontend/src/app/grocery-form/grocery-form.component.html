@@ -42,8 +42,8 @@
               formControlName="item_id"
               [class.invalid]="isItemFieldInvalid(i, 'item_id')"
             >
-              <option value="">Select an item</option>
-              <option *ngFor="let ai of availableItems" [value]="ai.id">
+              <option [ngValue]="0">Select an item</option>
+              <option *ngFor="let ai of availableItems" [ngValue]="ai.id">
                 {{ ai.name }}
               </option>
             </select>

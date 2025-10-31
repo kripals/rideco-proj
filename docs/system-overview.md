@@ -68,6 +68,7 @@ Angular CLI serves the client at `http://localhost:4200` with hot reload. The AP
 - RxJS and `HttpClient` manage API calls and async flows.
 - `grocery-form` is a reactive form that builds the payload sent to the backend.
 - `grocery-list` now supports add/edit/delete flows and purchased toggles on top of the previously saved lists view.
+- Shared models in `src/app/models/` keep TypeScript interfaces and typed reactive forms in sync with the backend contracts.
 - Styling is plain CSS—no dependency on Material or other UI kits.
 
 ---
