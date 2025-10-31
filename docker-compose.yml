@@ -10,11 +10,3 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
-
-  frontend:
-    build: ./grocery-frontend
-    container_name: grocery_frontend
-    ports:
-      - "4200:80"
-    depends_on:
-      - backend

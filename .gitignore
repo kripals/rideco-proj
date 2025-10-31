@@ -34,6 +34,7 @@ venv/
 env/
 env.bak/
 .envrc
+backend/.env
 
 # Packaging / build
 build/

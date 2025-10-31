@@ -1,27 +1,177 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
+
 from grocery_api import models, schemas
 
-def get_items(db: Session):
-    return db.query(models.GroceryItem).all()
 
-def create_item(db: Session, item: schemas.GroceryCreate):
-    db_item = models.GroceryItem(**item.dict())
+def _model_dump(schema_obj, **kwargs):
+    """Support Pydantic v1/v2 by checking available dump method."""
+    if hasattr(schema_obj, "model_dump"):
+        return schema_obj.model_dump(**kwargs)
+    return schema_obj.dict(**kwargs)
+
+
+# --------------------------------------------------------------------
+# ITEM TYPES
+# --------------------------------------------------------------------
+def get_item_types(db: Session):
+    return db.query(models.ItemType).options(selectinload(models.ItemType.items)).all()
+
+
+def create_item_type(db: Session, item_type: schemas.ItemTypeCreate):
+    db_item_type = models.ItemType(**_model_dump(item_type))
+    db.add(db_item_type)
+    db.commit()
+    db.refresh(db_item_type)
+    return db_item_type
+
+
+# --------------------------------------------------------------------
+# ITEMS
+# --------------------------------------------------------------------
+def get_items(db: Session):
+    return db.query(models.Item).options(selectinload(models.Item.item_type)).all()
+
+
+def create_item(db: Session, item: schemas.ItemCreate):
+    db_item = models.Item(**_model_dump(item))
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
     return db_item
 
-def update_item(db: Session, item_id: int, item: schemas.GroceryCreate):
-    db_item = db.query(models.GroceryItem).filter(models.GroceryItem.id == item_id).first()
-    if db_item:
-        for key, value in item.dict().items():
-            setattr(db_item, key, value)
+
+# --------------------------------------------------------------------
+# GROCERIES
+# --------------------------------------------------------------------
+def get_groceries(db: Session):
+    return (
+        db.query(models.Grocery)
+        .options(
+            selectinload(models.Grocery.grocery_items).selectinload(
+                models.GroceryItem.item
+            )
+        )
+        .all()
+    )
+
+
+def get_grocery_by_id(db: Session, grocery_id: int):
+    return (
+        db.query(models.Grocery)
+        .options(
+            selectinload(models.Grocery.grocery_items).selectinload(
+                models.GroceryItem.item
+            )
+        )
+        .filter(models.Grocery.id == grocery_id)
+        .first()
+    )
+
+
+def create_grocery(db: Session, grocery: schemas.GroceryCreate):
+    db_grocery = models.Grocery(
+        family_id=grocery.family_id,
+        grocery_date=grocery.grocery_date,
+    )
+    if grocery.grocery_items:
+        db_grocery.grocery_items = [
+            models.GroceryItem(
+                item_id=item.item_id,
+                quantity=item.quantity,
+                purchased=item.purchased,
+            )
+            for item in grocery.grocery_items
+        ]
+    db.add(db_grocery)
+    db.commit()
+
+    return get_grocery_by_id(db, db_grocery.id)
+
+
+def update_grocery(db: Session, grocery_id: int, grocery: schemas.GroceryUpdate):
+    db_grocery = (
+        db.query(models.Grocery).filter(models.Grocery.id == grocery_id).first()
+    )
+    if not db_grocery:
+        return None
+
+    update_data = _model_dump(
+        grocery,
+        exclude_unset=True,
+        exclude={"grocery_items"},
+    )
+    for key, value in update_data.items():
+        setattr(db_grocery, key, value)
+    db.commit()
+    return get_grocery_by_id(db, grocery_id)
+
+
+def delete_grocery(db: Session, grocery_id: int):
+    db_grocery = (
+        db.query(models.Grocery).filter(models.Grocery.id == grocery_id).first()
+    )
+    if db_grocery:
+        db.delete(db_grocery)
         db.commit()
-        db.refresh(db_item)
+    return db_grocery
+
+
+# --------------------------------------------------------------------
+# GROCERY ITEMS
+# --------------------------------------------------------------------
+def get_grocery_items(db: Session):
+    return (
+        db.query(models.GroceryItem)
+        .options(selectinload(models.GroceryItem.item))
+        .all()
+    )
+
+
+def get_grocery_items_by_grocery(db: Session, grocery_id: int):
+    return (
+        db.query(models.GroceryItem)
+        .options(selectinload(models.GroceryItem.item))
+        .filter(models.GroceryItem.grocery_id == grocery_id)
+        .all()
+    )
+
+
+def create_grocery_item(db: Session, grocery_id: int, item: schemas.GroceryItemCreate):
+    db_item = models.GroceryItem(
+        grocery_id=grocery_id,
+        item_id=item.item_id,
+        quantity=item.quantity,
+        purchased=item.purchased,
+    )
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
     return db_item
 
-def delete_item(db: Session, item_id: int):
-    db_item = db.query(models.GroceryItem).filter(models.GroceryItem.id == item_id).first()
+
+def update_grocery_item(
+    db: Session, grocery_item_id: int, item: schemas.GroceryItemCreate
+):
+    db_item = (
+        db.query(models.GroceryItem)
+        .filter(models.GroceryItem.id == grocery_item_id)
+        .first()
+    )
+    if not db_item:
+        return None
+    for key, value in _model_dump(item, exclude_unset=True).items():
+        setattr(db_item, key, value)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+
+def delete_grocery_item(db: Session, grocery_item_id: int):
+    db_item = (
+        db.query(models.GroceryItem)
+        .filter(models.GroceryItem.id == grocery_item_id)
+        .first()
+    )
     if db_item:
         db.delete(db_item)
         db.commit()
