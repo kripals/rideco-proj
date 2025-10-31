@@ -1,0 +1,98 @@
+<section class="grocery-card">
+  <header class="card-header">
+    <h2>Plan Your Grocery Trip</h2>
+    <p>Choose a shopping date and build the list before you head out.</p>
+  </header>
+
+  <form [formGroup]="groceryForm" (ngSubmit)="submitForm()" novalidate>
+    <input type="hidden" formControlName="family_id" />
+
+    <div class="field-group">
+      <label for="grocery-date" class="field-label">Shopping date</label>
+      <input
+        id="grocery-date"
+        type="date"
+        formControlName="grocery_date"
+        [class.invalid]="isFieldInvalid('grocery_date')"
+      />
+      <small class="hint">Pick the day you plan to shop.</small>
+      <div *ngIf="isFieldInvalid('grocery_date')" class="error">
+        Please select a shopping date.
+      </div>
+    </div>
+
+    <div formArrayName="grocery_items" class="items-section">
+      <div class="items-header">
+        <h3>Items</h3>
+        <button type="button" class="add-button" (click)="addItem()">
+          + Add item
+        </button>
+      </div>
+
+      <div
+        class="item-card"
+        *ngFor="let item of items.controls; let i = index; trackBy: trackByIndex"
+        [formGroupName]="i"
+      >
+        <div class="item-fields">
+          <div class="field">
+            <label for="item-{{ i }}">Item</label>
+            <select
+              id="item-{{ i }}"
+              formControlName="item_id"
+              [class.invalid]="isItemFieldInvalid(i, 'item_id')"
+            >
+              <option value="">Select an item</option>
+              <option *ngFor="let ai of availableItems" [value]="ai.id">
+                {{ ai.name }}
+              </option>
+            </select>
+            <div *ngIf="isItemFieldInvalid(i, 'item_id')" class="error">
+              Please choose an item.
+            </div>
+          </div>
+
+          <div class="field field-small">
+            <label for="quantity-{{ i }}">Quantity</label>
+            <input
+              id="quantity-{{ i }}"
+              type="number"
+              formControlName="quantity"
+              min="1"
+              [class.invalid]="isItemFieldInvalid(i, 'quantity')"
+            />
+            <div *ngIf="isItemFieldInvalid(i, 'quantity')" class="error">
+              Quantity must be at least 1.
+            </div>
+          </div>
+        </div>
+
+        <div class="item-options">
+          <label class="checkbox">
+            <input type="checkbox" formControlName="purchased" />
+            Already bought
+          </label>
+
+          <button
+            type="button"
+            class="remove-button"
+            (click)="removeItem(i)"
+            *ngIf="items.length > 1"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="primary" [disabled]="isSubmitting">
+        {{ isSubmitting ? 'Saving…' : 'Save Grocery List' }}
+      </button>
+    </div>
+
+    <div *ngIf="saveSuccess" class="success-message">
+      Grocery saved successfully!
+    </div>
+  </form>
+</section>
